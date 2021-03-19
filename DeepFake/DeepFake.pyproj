@@ -25,12 +25,14 @@
     <Compile Include="DeepFake.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="atkin.jpg" />
     <Content Include="brad.jpg" />
     <Content Include="cr7.jpg" />
     <Content Include="jim.jpg" />
     <Content Include="kaczka.jpg" />
     <Content Include="putin.jpg" />
     <Content Include="rock.jpg" />
+    <Content Include="sacha.jpg" />
     <Content Include="shape_predictor_68_face_landmarks.dat" />
     <Content Include="spacey.jpg" />
   </ItemGroup>
