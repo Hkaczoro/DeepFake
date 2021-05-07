@@ -38,7 +38,7 @@ def swapWindow():
     window1 = Toplevel(root)
     text1 = Text(window1, height=1, width=30, font=('Helvetica', 18))
     browseButton = Button(window1, text = "Wybierz zdjęcie", command=lambda:browseFiles(), font=18, width=40)
-    swapButton = Button(window1, text="Zamień twarz w czasie rzeczywistym", command=lambda:[df.swap(lista[-1]), window1.destroy()],font=18, width=40)
+    swapButton = Button(window1, text="Zamień", command=lambda:[df.swap(lista[-1]), window1.destroy()],font=18, width=40)
     browseButton.pack(side= TOP)
     swapButton.pack(side= BOTTOM)
 
@@ -46,7 +46,7 @@ def twoFaceWindow():
     window2 = Toplevel(root)
     browseButton = Button(window2, text = "Wybierz zdjęcie", command=lambda:browseFiles(), font=18, width=40)
     browseButton.pack(side= TOP)
-    twoFaceButton = Button(window2, text="Zamień twarze ze dwóch zdjęć", command=lambda:df.change_face(lista[-1], lista[-2]),font=18, width=40)
+    twoFaceButton = Button(window2, text="Zamień", command=lambda:df.change_face(lista[-1], lista[-2]),font=18, width=40)
     twoFaceButton.pack(side=BOTTOM)
 
 
