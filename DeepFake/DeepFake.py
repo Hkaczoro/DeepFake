@@ -79,110 +79,110 @@ class Deepfake:
                     triangle_indexes.append(triangle)
 
 
-        flag = True
+
         # Druga twarz (z kamery) i główna funkcjonalność
-        while flag:
-            ret, img2 = capture.read()
-            img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-            img2_new_face = np.zeros_like(img2)
+        with pyvirtualcam.Camera(width=1280, height=720, fps=20,fmt=pyvirtualcam.PixelFormat.BGR) as cam:
+            while True:
+                ret, img2 = capture.read()
+                img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+                img2_new_face = np.zeros_like(img2)
+    
+                faces2 = detector(img2_gray)
+                for face in faces2:
+                    landmarks = predictor(img2_gray, face)
+                    landmarks_points2 = []
+                    for n in range(0, 68):
+                        x = landmarks.part(n).x
+                        y = landmarks.part(n).y
+                        landmarks_points2.append((x, y))
+    
+                    points2 = np.array(landmarks_points2, np.int32)
+                    convexhull2 = cv2.convexHull(points2)
+    
+                lines_space_mask = np.zeros_like(img_gray)
+                lines_space_new_face = np.zeros_like(img2)
+                #Triangulacja
+                for triangle_index in triangle_indexes:
+                    t1p1 = landmarks_points[triangle_index[0]]
+                    t1p2 = landmarks_points[triangle_index[1]]
+                    t1p3 = landmarks_points[triangle_index[2]]
+                    triangle1 = np.array([t1p1, t1p2, t1p3], np.int32)
+    
+                    rect1 = cv2.boundingRect(triangle1)
+                    (x,y,w,h) = rect1;
+                    cropped_triangle = img[y: y + h, x: x + w]
+                    mask1 = np.zeros((h, w), np.uint8)
+    
+                    points = np.array([[t1p1[0] - x, t1p1[1] - y],
+                                    [t1p2[0] - x, t1p2[1] - y],
+                                    [t1p3[0] - x, t1p3[1] - y]], np.int32)
+    
+                    cv2.fillConvexPoly(mask1, points, 255)
+    
+    
+                #triangle 2
+                    t2p1 = landmarks_points2[triangle_index[0]]
+                    t2p2 = landmarks_points2[triangle_index[1]]
+                    t2p3 = landmarks_points2[triangle_index[2]]
+                    triangle2 = np.array([t2p1, t2p2, t2p3], np.int32)
+    
+                    rect2 = cv2.boundingRect(triangle2)
+                    (x,y,w,h) = rect2;
+    
+                    cropped_triangle2 = img2[y: y + h, x: x + w]
+                    mask2 = np.zeros((h, w), np.uint8)
+    
+                    points2 = np.array([[t2p1[0] - x, t2p1[1] - y],
+                                    [t2p2[0] - x, t2p2[1] - y],
+                                    [t2p3[0] - x, t2p3[1] - y]], np.int32)
+    
+                    cv2.fillConvexPoly(mask2, points2, 255)
+                    cropped_triangle2 = cv2.bitwise_and(cropped_triangle2, cropped_triangle2, mask = mask2)
+    
+    
+                    #transformacja trójkątów
+                    points = np.float32(points)
+                    points2 = np.float32(points2)
+                    M = cv2.getAffineTransform(points, points2)
+                    warped_triangle = cv2.warpAffine(cropped_triangle, M, (w, h))
+                    warped_triangle = cv2.bitwise_and(warped_triangle, warped_triangle, mask = mask2)
+    
+                    #zrekonstruowanie 2 twarzy
+                    img2_new_face_rect = img2_new_face[y: y + h, x: x + w]
+                    img2_new_face_rect_gray = cv2.cvtColor(img2_new_face_rect, cv2.COLOR_BGR2GRAY)
+                    b, bg = cv2.threshold(img2_new_face_rect_gray, 1, 255, cv2.THRESH_BINARY_INV)  #biało-czarny background
+                    warped_triangle = cv2.bitwise_and(warped_triangle, warped_triangle, mask=bg) 
+                    #dodawanie każdego trójkąta na ten sam bg
+                    img2_new_face_rect = cv2.add(img2_new_face_rect, warped_triangle)
+                    img2_new_face[y: y + h, x: x + w] = img2_new_face_rect
+    
+    
+                #wklejenie nowej twarzy
+                img2_face_mask = np.zeros_like(img2_gray)
+                img2_head_mask = cv2.fillConvexPoly(img2_face_mask, convexhull2, 255)
+                img2_face_mask = cv2.bitwise_not(img2_head_mask)
+    
+                background = cv2.bitwise_and(img2, img2, mask=img2_face_mask)
+                result = cv2.add(background, img2_new_face)
+    
+                (x, y, w, h) = cv2.boundingRect(convexhull2)
+                center_face2 = (int((x + x + w) / 2), int((y + y + h) / 2))
+    
+                seamless_clone = cv2.seamlessClone(result, img2, img2_head_mask, center_face2, cv2.MONOCHROME_TRANSFER)
+                seamless_clone2 = cv2.seamlessClone(result, img2, img2_head_mask, center_face2, cv2.NORMAL_CLONE) #nie działa?
+                seamless_clone3 = cv2.seamlessClone(result, img2, img2_head_mask, center_face2, cv2.MIXED_CLONE) #najlepszy efekt
+    
+                #cv2.imshow("Face swap monochrome", seamless_clone)
+                #cv2.imshow("Face swap normal", seamless_clone2)
+                cv2.imshow("Face swap real time", seamless_clone3)
+                
 
-            faces2 = detector(img2_gray)
-            for face in faces2:
-                landmarks = predictor(img2_gray, face)
-                landmarks_points2 = []
-                for n in range(0, 68):
-                    x = landmarks.part(n).x
-                    y = landmarks.part(n).y
-                    landmarks_points2.append((x, y))
-
-                points2 = np.array(landmarks_points2, np.int32)
-                convexhull2 = cv2.convexHull(points2)
-
-            lines_space_mask = np.zeros_like(img_gray)
-            lines_space_new_face = np.zeros_like(img2)
-            #Triangulacja
-            for triangle_index in triangle_indexes:
-                t1p1 = landmarks_points[triangle_index[0]]
-                t1p2 = landmarks_points[triangle_index[1]]
-                t1p3 = landmarks_points[triangle_index[2]]
-                triangle1 = np.array([t1p1, t1p2, t1p3], np.int32)
-
-                rect1 = cv2.boundingRect(triangle1)
-                (x,y,w,h) = rect1;
-                cropped_triangle = img[y: y + h, x: x + w]
-                mask1 = np.zeros((h, w), np.uint8)
-
-                points = np.array([[t1p1[0] - x, t1p1[1] - y],
-                                [t1p2[0] - x, t1p2[1] - y],
-                                [t1p3[0] - x, t1p3[1] - y]], np.int32)
-
-                cv2.fillConvexPoly(mask1, points, 255)
-
-
-            #triangle 2
-                t2p1 = landmarks_points2[triangle_index[0]]
-                t2p2 = landmarks_points2[triangle_index[1]]
-                t2p3 = landmarks_points2[triangle_index[2]]
-                triangle2 = np.array([t2p1, t2p2, t2p3], np.int32)
-
-                rect2 = cv2.boundingRect(triangle2)
-                (x,y,w,h) = rect2;
-
-                cropped_triangle2 = img2[y: y + h, x: x + w]
-                mask2 = np.zeros((h, w), np.uint8)
-
-                points2 = np.array([[t2p1[0] - x, t2p1[1] - y],
-                                [t2p2[0] - x, t2p2[1] - y],
-                                [t2p3[0] - x, t2p3[1] - y]], np.int32)
-
-                cv2.fillConvexPoly(mask2, points2, 255)
-                cropped_triangle2 = cv2.bitwise_and(cropped_triangle2, cropped_triangle2, mask = mask2)
-
-
-                #transformacja trójkątów
-                points = np.float32(points)
-                points2 = np.float32(points2)
-                M = cv2.getAffineTransform(points, points2)
-                warped_triangle = cv2.warpAffine(cropped_triangle, M, (w, h))
-                warped_triangle = cv2.bitwise_and(warped_triangle, warped_triangle, mask = mask2)
-
-                #zrekonstruowanie 2 twarzy
-                img2_new_face_rect = img2_new_face[y: y + h, x: x + w]
-                img2_new_face_rect_gray = cv2.cvtColor(img2_new_face_rect, cv2.COLOR_BGR2GRAY)
-                b, bg = cv2.threshold(img2_new_face_rect_gray, 1, 255, cv2.THRESH_BINARY_INV)  #biało-czarny background
-                warped_triangle = cv2.bitwise_and(warped_triangle, warped_triangle, mask=bg) 
-                #dodawanie każdego trójkąta na ten sam bg
-                img2_new_face_rect = cv2.add(img2_new_face_rect, warped_triangle)
-                img2_new_face[y: y + h, x: x + w] = img2_new_face_rect
-
-
-            #wklejenie nowej twarzy
-            img2_face_mask = np.zeros_like(img2_gray)
-            img2_head_mask = cv2.fillConvexPoly(img2_face_mask, convexhull2, 255)
-            img2_face_mask = cv2.bitwise_not(img2_head_mask)
-
-            background = cv2.bitwise_and(img2, img2, mask=img2_face_mask)
-            result = cv2.add(background, img2_new_face)
-
-            (x, y, w, h) = cv2.boundingRect(convexhull2)
-            center_face2 = (int((x + x + w) / 2), int((y + y + h) / 2))
-
-            seamless_clone = cv2.seamlessClone(result, img2, img2_head_mask, center_face2, cv2.MONOCHROME_TRANSFER)
-            seamless_clone2 = cv2.seamlessClone(result, img2, img2_head_mask, center_face2, cv2.NORMAL_CLONE) #nie działa?
-            seamless_clone3 = cv2.seamlessClone(result, img2, img2_head_mask, center_face2, cv2.MIXED_CLONE) #najlepszy efekt
-
-            #cv2.imshow("Face swap monochrome", seamless_clone)
-            #cv2.imshow("Face swap normal", seamless_clone2)
-            cv2.imshow("Face swap real time", seamless_clone3)
-            
-            with pyvirtualcam.Camera(width=1280, height=720, fps=20) as cam:
-                while true:
-                    frame = cv2.resize(seamless_clone3, (1280, 720), interpolation=cv2.BORDER_DEFAULT)
-                    cam.send(frame)
-                    cam.sleep_until_next_frame()
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+                frame = cv2.resize(seamless_clone3, (1280, 720), interpolation=cv2.BORDER_DEFAULT)
+                cam.send(frame)
+                cam.sleep_until_next_frame()
+    
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 
 
         cv2.destroyAllWindows
@@ -198,37 +198,35 @@ class Deepfake:
 
         triangle_indexes = []
 
-        flag = True
         # Druga twarz (z kamery) i główna funkcjonalność
-        while flag:
-            ret, img2 = capture.read()
-            img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-            img2_new_face = np.zeros_like(img2)
-
-            faces2 = detector(img2_gray)
-            for face in faces2:
-                landmarks = predictor(img2_gray, face)
-                landmarks_points2 = []
-                for n in range(0, 68):
-                    x = landmarks.part(n).x
-                    y = landmarks.part(n).y
-                    landmarks_points2.append((x, y))
-                    cv2.circle(img2, (x,y), 2, (0,0,255), -1)
-
-                
-
-            lines_space_new_face = np.zeros_like(img2)
-
-
-            cv2.imshow("Points", img2)
-            with pyvirtualcam.Camera(width=1280, height=720, fps=20) as cam:
-                while true:
-                    frame = cv2.resize(img2, (1280, 720), interpolation=cv2.BORDER_DEFAULT)
-                    cam.send(frame)
-                    cam.sleep_until_next_frame()
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+        with pyvirtualcam.Camera(width=1280, height=720, fps=20,fmt=pyvirtualcam.PixelFormat.BGR) as cam:
+            while True:
+                ret, img2 = capture.read()
+                img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+                img2_new_face = np.zeros_like(img2)
+    
+                faces2 = detector(img2_gray)
+                for face in faces2:
+                    landmarks = predictor(img2_gray, face)
+                    landmarks_points2 = []
+                    for n in range(0, 68):
+                        x = landmarks.part(n).x
+                        y = landmarks.part(n).y
+                        landmarks_points2.append((x, y))
+                        cv2.circle(img2, (x,y), 2, (0,0,255), -1)
+    
+                    
+    
+                lines_space_new_face = np.zeros_like(img2)
+    
+    
+                cv2.imshow("Points", img2)
+                frame = cv2.resize(img2, (1280, 720), interpolation=cv2.BORDER_DEFAULT)
+                cam.send(frame)
+                cam.sleep_until_next_frame()
+    
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 
 
         cv2.destroyAllWindows
