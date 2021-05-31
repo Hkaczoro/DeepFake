@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import dlib
+import pyvirtualcam
 from tkinter import *
 from tkinter import filedialog
 
@@ -174,6 +175,12 @@ class Deepfake:
             #cv2.imshow("Face swap normal", seamless_clone2)
             cv2.imshow("Face swap real time", seamless_clone3)
 
+            with pyvirtualcam.Camera(width=1280, height=720, fps=20) as cam:
+                while True:
+                    frame = cv2.resize(seamless_clone3, (1280, 720), interpolation=cv2.BORDER_DEFAULT)
+                    cam.send(frame)
+                    cam.sleep_until_next_frame()
+
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
@@ -214,6 +221,11 @@ class Deepfake:
 
 
             cv2.imshow("Points", img2)
+            with pyvirtualcam.Camera(width=1280, height=720, fps=20) as cam:
+                while True:
+                    frame = cv2.resize(img2, (1280, 720), interpolation=cv2.BORDER_DEFAULT)
+                    cam.send(frame)
+                    cam.sleep_until_next_frame()
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
